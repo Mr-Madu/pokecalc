@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    window.onload = function () {
+      const password = prompt("Enter the password to access this tool:");
+      const correctPassword = "poketmonletsgo";
+      if (password !== correctPassword) {
+        alert("Incorrect password! You will be redirected.");
+        window.location.href = "https://your-homepage.com"; // change this URL to wherever you want to send unauthorized users
+      }
+    };
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pokémon Card Profit Calculator</title>
