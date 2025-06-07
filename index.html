@@ -340,6 +340,7 @@
       const taxRate = taxStateValue === "custom"
         ? 1 + safeParse(document.getElementById("customTax").value) / 100
         : safeParse(taxStateValue);
+    
       const rawPrices = document.getElementById("lotCards").value.trim().split("\n");
       const cardValues = rawPrices
         .map(line => parseFloat(line.trim()))
@@ -347,8 +348,11 @@
     
       const shipping = safeParse(document.getElementById("lotShipping").value, 0);
     
-      const totalTargetCost = cardValues.reduce((a, b) => a + b, 0);
-      const maxBid = totalTargetCost * taxRate - shipping;
+      const totalTargetCost = cardValues.reduce((a, b) => a + b, 0); 
+    
+      const maxBid = shipping === 0
+        ? totalTargetCost
+        : totalTargetCost - shipping + (shipping * taxRate - shipping);
     
       document.getElementById("lotResult").innerHTML = 
         `<p><strong>Maximum Bid:</strong> $${maxBid.toFixed(2)}</p>`;
