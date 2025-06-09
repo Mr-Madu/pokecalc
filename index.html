@@ -402,38 +402,46 @@
       const lossChance = safeParse(document.getElementById("lossChance").value) / 100;
       const targetMargin = safeParse(document.getElementById("margin").value) / 100;
       const promotedFee = safeParse(document.getElementById("promotedFee").value) / 100;
-
+    
       const taxStateValue = document.getElementById("taxState").value;
       const taxRate = taxStateValue === "custom"
         ? 1 + safeParse(document.getElementById("customTax").value) / 100
         : safeParse(taxStateValue);
-
+    
       const gradingFeePerCard = 19;
-
+    
+      // Modified raw value calculation for cards under $5
+      const adjustedRawValue = rawValue < 5 ? (rawValue * 0.70) : rawValue;
+    
       const totalSale = quantity * (
-        (rawChance * rawValue) +
+        (rawChance * adjustedRawValue) +
         (psa10Chance * psa10Value) +
-        (psa9Chance * psa9Value)
+        (psa9Chance * psa9Value) + 
+        (lossChance * 8)
       );
-
+    
       const gradingCost = quantity * (psa10Chance + psa9Chance + lossChance) * gradingFeePerCard;
-
+    
       const baseFee = (totalSale * taxRate) * 0.1325;
       const promoFee = (totalSale * taxRate) * promotedFee;
       const fixedFees = quantity * rawChance * 0.3 + quantity * (psa10Chance + psa9Chance) * 0.4;
-
+    
       const ebayFee = baseFee + promoFee + fixedFees;
-
-      const shippingFee = quantity * rawChance * 0.69
-        + quantity * (psa10Chance + psa9Chance) * 4.5;
-
+    
+      // Modified shipping fee calculation for cards under $5
+      const rawShippingFee = rawValue < 5 ? 
+        (quantity * rawChance * 0.15) : 
+        (quantity * rawChance * 1.25);
+      
+      const shippingFee = rawShippingFee + quantity * (psa10Chance + psa9Chance) * 4.5;
+    
       const totalCost = (totalSale - ebayFee - shippingFee - gradingCost) / ((1 + targetMargin) * quantity) / taxRate;
       const costPerCardWithTax = totalCost * taxRate;
       const totalCostWithTax = costPerCardWithTax * quantity;
-
+    
       const marginAmount = totalSale - ebayFee - shippingFee - gradingCost - totalCostWithTax;
       const marginPercent = (marginAmount / totalCostWithTax) * 100;
-
+    
       document.getElementById("results").innerHTML = 
         `<p><strong>Max Bid Price/card:</strong> $${totalCost.toFixed(2)}</p>
         <p><strong>Total Price (w/ Tax)/card:</strong> $${costPerCardWithTax.toFixed(2)}</p>
@@ -444,7 +452,8 @@
         <p><strong>Estimated eBay Fee:</strong> $${ebayFee.toFixed(2)}</p>
         <p><strong>Estimated Shipping Fee:</strong> $${shippingFee.toFixed(2)}</p>
         <p><strong>Estimated Sales Margin:</strong> $${marginAmount.toFixed(2)}</p>
-        <p><strong>Estimated Percent Margin:</strong> ${marginPercent.toFixed(2)}%</p>`;
+        <p><strong>Estimated Percent Margin:</strong> ${marginPercent.toFixed(2)}%</p>
+        ${rawValue < 5 ? '<p class="lot-note">Note: Using lot pricing adjustments for cards under $5</p>' : ''}`;
       
       // Show the "Add to Lot Calculator" button
       document.getElementById("addToLotBtn").style.display = "block";
