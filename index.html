@@ -236,7 +236,7 @@
         <label>PSA 10 %</label>
         <div class="percent-input"><input type="number" id="psa10Chance" value="11" /></div>
         <label>Loss %</label>
-        <div class="percent-input"><input type="number" id="lossChance" value="1.8" /></div>
+        <div class="percent-input"><input type="number" id="lossChance" value="2" /></div>
       </section>
 
       <section>
@@ -295,10 +295,7 @@
           <option value="1.06">West Virginia (6.0%)</option>
           <option value="1.05">Wisconsin (5.0%)</option>
           <option value="1.06">Wyoming (6.0%)</option>
-	  <option value="custom">Custom</option>
 	</select>
-        <label>Custom Tax Rate</label>
-        <div class="percent-input"><input type="number" step="0.0001" id="customTax" value="1.0" /></div>
         <label>Promoted Listing %</label>
         <div class="percent-input"><input type="number" id="promotedFee" value="2" /></div>
       </section>
@@ -336,11 +333,8 @@
 
   <script>
     function calculateLot() {
-      const taxStateValue = document.getElementById("taxState").value;
-      const taxRate = taxStateValue === "custom"
-        ? 1 + safeParse(document.getElementById("customTax").value) / 100
-        : safeParse(taxStateValue);
-    
+	  const taxRate = safeParse(document.getElementById("taxState").value);
+
       const rawPrices = document.getElementById("lotCards").value.trim().split("\n");
       const cardValues = rawPrices
         .map(line => parseFloat(line.trim()))
@@ -350,12 +344,15 @@
     
       const totalTargetCost = cardValues.reduce((a, b) => a + b, 0); 
     
-      const maxBid = shipping === 0
-        ? totalTargetCost
-        : totalTargetCost - shipping + (shipping * taxRate - shipping);
+	  let maxBid = (totalTargetCost / taxRate) - shipping;
+	  if (maxBid < 0) maxBid = 0;
+
+	  const totalPaid = (maxBid + shipping) * taxRate;
+
     
-      document.getElementById("lotResult").innerHTML = 
-        `<p><strong>Maximum Bid:</strong> $${maxBid.toFixed(2)}</p>`;
+	  document.getElementById("lotResult").innerHTML = 
+	    `<p><strong>Maximum Bid:</strong> $${maxBid.toFixed(2)}</p>
+	     <p><strong>Estimated Total Paid (bid + shipping, after tax):</strong> $${totalPaid.toFixed(2)}</p>`;
     }
 
     function addToLotCalculator() {
@@ -403,20 +400,30 @@
       const targetMargin = safeParse(document.getElementById("margin").value) / 100;
       const promotedFee = safeParse(document.getElementById("promotedFee").value) / 100;
     
-      const taxStateValue = document.getElementById("taxState").value;
-      const taxRate = taxStateValue === "custom"
-        ? 1 + safeParse(document.getElementById("customTax").value) / 100
-        : safeParse(taxStateValue);
+      const taxRate = safeParse(document.getElementById("taxState").value);
     
       const gradingFeePerCard = 25;
+	  const slabShipPerCard = 4.5;
+      const rawShipPerCardMax = slabShipPerCard / 20; // 4.5/20 = 0.225 conservative
+      const lossShipPerCard = 0.5; // for later change B (loss shipping)
+	  const rawLotSize = 20;   // minimum cards per raw lot sale
+      const slabLotSize = 10;  // slab lots
+	  const psa9LotRealization = 0.90; // start here, tune later
+	  const psa9LotSize = slabLotSize;
+	  const expectedPsa9Cards = quantity * psa9Chance;
+	  const expectedPsa9Lots = expectedPsa9Cards / psa9LotSize;
+
+
+      //% of single-card raw value you realize when selling raw as lots
+      const lotRealization = 0.85; // tweak over time (0.80–0.90 common)
     
-      // Modified raw value calculation for cards under $5
-      const adjustedRawValue = rawValue < 5 ? (rawValue * 0.70) : rawValue;
+      // Modified raw value calculation for lots
+      const adjustedRawValue = rawValue * lotRealization;
     
       const totalSale = quantity * (
         (rawChance * adjustedRawValue) +
         (psa10Chance * psa10Value) +
-        (psa9Chance * psa9Value) + 
+        (psa9Chance * psa9Value * psa9LotRealization) + 
         (lossChance * 8)
       );
     
@@ -424,16 +431,27 @@
     
       const baseFee = (totalSale * taxRate) * 0.1325;
       const promoFee = (totalSale * taxRate) * promotedFee;
-      const fixedFees = quantity * rawChance * 0.3 + quantity * (psa10Chance + psa9Chance) * 0.4;
+	  const expectedRawCards = quantity * rawChance;
+	  const expectedLossCards = quantity * lossChance;
+
+	  const expectedRawLots = expectedRawCards / rawLotSize;
+	  const expectedLossLots = expectedLossCards / slabLotSize;
+
+	  const fixedFees =
+	    (expectedRawLots * 0.40) +
+	    (expectedLossLots * 0.40) +
+	    (expectedPsa9Lots * 0.40) +
+	    (quantity * psa10Chance * 0.40); // PSA10 still individual
     
       const ebayFee = baseFee + promoFee + fixedFees;
     
-      // Modified shipping fee calculation for cards under $5
-      const rawShippingFee = rawValue < 5 ? 
-        (quantity * rawChance * 0.15) : 
-        (quantity * rawChance * 1.25);
-      
-      const shippingFee = rawShippingFee + quantity * (psa10Chance + psa9Chance) * 4.5;
+	  // Raw cards shipped in lots: allocate conservative max shipping per raw card
+	  const rawShippingFee = quantity * rawChance * rawShipPerCardMax;
+	
+	  const shippingFee =
+	    rawShippingFee +
+	    quantity * psa10Chance * slabShipPerCard +
+	    quantity * (lossChance + psa9Chance) * lossShipPerCard;
     
       const totalCost = (totalSale - ebayFee - shippingFee - gradingCost) / ((1 + targetMargin) * quantity) / taxRate;
       const costPerCardWithTax = totalCost * taxRate;
@@ -452,8 +470,7 @@
         <p><strong>Estimated eBay Fee:</strong> $${ebayFee.toFixed(2)}</p>
         <p><strong>Estimated Shipping Fee:</strong> $${shippingFee.toFixed(2)}</p>
         <p><strong>Estimated Sales Margin:</strong> $${marginAmount.toFixed(2)}</p>
-        <p><strong>Estimated Percent Margin:</strong> ${marginPercent.toFixed(2)}%</p>
-        ${rawValue < 5 ? '<p class="lot-note">Note: Using lot pricing adjustments for cards under $5</p>' : ''}`;
+        <p><strong>Estimated Percent Margin:</strong> ${marginPercent.toFixed(2)}%</p>`;
       
       // Show the "Add to Lot Calculator" button
       document.getElementById("addToLotBtn").style.display = "block";
@@ -463,10 +480,9 @@
       document.getElementById("psa10Chance").value = 11;
       document.getElementById("psa9Chance").value = 5;
       document.getElementById("rawChance").value = 82;
-      document.getElementById("lossChance").value = 1.8;
+      document.getElementById("lossChance").value = 2;
       document.getElementById("margin").value = 30;
       document.getElementById("taxState").value = "1.06625";
-      document.getElementById("customTax").value = 1.0;
       document.getElementById("promotedFee").value = 2;
     }
 
@@ -480,4 +496,3 @@
   </script>
 </body>
 </html>
-
