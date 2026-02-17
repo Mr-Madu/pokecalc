@@ -408,7 +408,7 @@
         ? 1 + safeParse(document.getElementById("customTax").value) / 100
         : safeParse(taxStateValue);
     
-      const gradingFeePerCard = 19;
+      const gradingFeePerCard = 25;
     
       // Modified raw value calculation for cards under $5
       const adjustedRawValue = rawValue < 5 ? (rawValue * 0.70) : rawValue;
@@ -480,3 +480,4 @@
   </script>
 </body>
 </html>
+
