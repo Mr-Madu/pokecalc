@@ -402,7 +402,7 @@
     
       const taxRate = safeParse(document.getElementById("taxState").value);
     
-      const gradingFeePerCard = 25;
+      const gradingFeePerCard = 25 + 0.5; //0.5 for misc grading supplies/shipping
 	  const slabShipPerCard = 4.5;
       const rawShipPerCardMax = slabShipPerCard / 20; // 4.5/20 = 0.225 conservative
       const lossShipPerCard = 0.5; // for later change B (loss shipping)
@@ -496,3 +496,4 @@
   </script>
 </body>
 </html>
+
